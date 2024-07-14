@@ -1,5 +1,7 @@
 pipeline{
-   agent any
+   agent {
+        docker { image 'maven:3.8.6-openjdk-18' }
+    }
    tools{
     maven 'M2_HOME'
    }
