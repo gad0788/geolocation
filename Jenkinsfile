@@ -1,9 +1,14 @@
-pipeline{
+pipeline {
    agent {
         docker { image 'maven:3.8.6-openjdk-11-slim' }
     }
    tools{
      maven 'M2_HOME'
+   }
+   environment {
+        registry = '257070983248.dkr.ecr.us-east-1.amazonaws.com/utc-app-qa'
+        registryCredential ='aws_ecr_id'
+        dockerimage = ''
    }
    stages{
         stage('maven build & SonarQube analysis'){
@@ -25,14 +30,14 @@ pipeline{
                         }
                     }
                     stage('maven package') {
-            steps {
-                sh 'mvn clean'
-                sh 'mvn install -DskipTests'
-                sh 'mvn package -DskipTests'
-            }
-        }
-                }
-        }
+                        steps {
+                          sh 'mvn clean'
+                          sh 'mvn install -DskipTests'
+                          sh 'mvn package -DskipTests'
+                          }
+                     }
+                  }
+         }
         stage('upload artifacts Nexus'){
             steps{
                 script{
@@ -46,10 +51,22 @@ pipeline{
                 }
             }
         }
-        stage('deploy'){
+        stage('Build Image'){
             steps{
-                echo 'deployment'
+                script{
+                    def mavenPom = readMavenPom file: 'pom.xml'
+                    dockerImage = docker.build registry + ":${mavenPom.version}"
+                }
             }
+            stage('Deploy Image'){
+              steps{
+                script{
+                    docker.withRegistry("https://"+registry,"ecr:us-east-1:"+registryCredential){
+                        dockerImage.push()
+                    }
+                }
+            }
+            
         }
      }
 }
